@@ -114,9 +114,9 @@ namespace SwiftPay.Services
             var issuer = _jwtSettings.Issuer;
             var audience = _jwtSettings.Audience;
 
-            // Hard limit to 60 minutes as required
-            var expiresMinutes = Math.Min(_jwtSettings.ExpiresMinutes, 60);
-
+            // Hard limit to 1440 minutes (24 hours) as required
+            var expiresMinutes = Math.Min(_jwtSettings.ExpiresMinutes, 1440);
+    
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
