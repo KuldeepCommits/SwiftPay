@@ -16,13 +16,31 @@ namespace SwiftPay.Services
         private readonly ICustomerRepository _customerRepo;
         private readonly IMapper _mapper;
         private readonly IAuditLogService _auditLogService;
+        private readonly INotificationAlertService _notificationService;
 
-        public BeneficiaryService(IBeneficiaryRepository repo, ICustomerRepository customerRepo, IMapper mapper, IAuditLogService auditLogService)
+        public BeneficiaryService(IBeneficiaryRepository repo, ICustomerRepository customerRepo, IMapper mapper, IAuditLogService auditLogService, INotificationAlertService notificationService)
         {
             _repo = repo;
             _customerRepo = customerRepo;
             _mapper = mapper;
             _auditLogService = auditLogService;
+            _notificationService = notificationService;
+        }
+
+        private async Task TryNotifyByCustomerIdAsync(int customerId, string message)
+        {
+            try
+            {
+                var customer = await _customerRepo.GetByIdAsync(customerId);
+                if (customer == null || customer.UserID <= 0) return;
+                await _notificationService.CreateAsync(new CreateNotificationDto
+                {
+                    UserID = customer.UserID,
+                    Message = message,
+                    Category = NotificationCategory.Routing,
+                });
+            }
+            catch { }
         }
 
         public async Task<BeneficiaryResponseDto> CreateAsync(CreateBeneficiaryDto dto)
@@ -50,6 +68,8 @@ namespace SwiftPay.Services
                 });
             }
             catch { }
+            await TryNotifyByCustomerIdAsync(created.CustomerID,
+                $"A new beneficiary '{created.Name}' has been added to your account successfully.");
             return _mapper.Map<BeneficiaryResponseDto>(created);
         }
 
@@ -116,6 +136,13 @@ namespace SwiftPay.Services
                 });
             }
             catch { }
+            var verificationMessage = updated.VerificationStatus switch
+            {
+                BeneficiaryVerificationStatus.Verified => $"Your beneficiary '{updated.Name}' has been verified and is ready for transfers.",
+                BeneficiaryVerificationStatus.Rejected => $"Your beneficiary '{updated.Name}' could not be verified. Please review the details and try again.",
+                _ => $"The verification status of beneficiary '{updated.Name}' has been updated to {updated.VerificationStatus}."
+            };
+            await TryNotifyByCustomerIdAsync(updated.CustomerID, verificationMessage);
             return _mapper.Map<BeneficiaryResponseDto>(updated);
         }
 

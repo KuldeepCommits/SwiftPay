@@ -27,28 +27,28 @@ namespace SwiftPay.Repositories
         public async Task<User> GetByIdAsync(int userId)
         {
             return await _db.Set<User>()
-                .Include(u => u.UserRoles)
+                .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(u => u.UserId == userId && !u.IsDeleted);
         }
 
         public async Task<User> GetByEmailAsync(string email)
         {
             return await _db.Set<User>()
-                .Include(u => u.UserRoles)
+                .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(u => u.Email == email && !u.IsDeleted);
         }
 
         public async Task<User> GetByPhoneAsync(string phone)
         {
             return await _db.Set<User>()
-                .Include(u => u.UserRoles)
+                .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(u => u.Phone == phone && !u.IsDeleted);
         }
 
         public async Task<IEnumerable<User>> GetAllAsync()
         {
             return await _db.Set<User>()
-                .Include(u => u.UserRoles)
+                .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
                 .Where(u => !u.IsDeleted)
                 .ToListAsync();
         }

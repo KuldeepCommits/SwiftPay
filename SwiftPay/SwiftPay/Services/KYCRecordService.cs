@@ -15,14 +15,31 @@ namespace SwiftPay.Services
         private readonly IKYCRecordRepository _repo;
         private readonly IUserRepository _userRepo;
         private readonly IAuditLogService _auditLogService;
+        private readonly INotificationAlertService _notificationService;
         private readonly IMapper _mapper;
 
-        public KYCRecordService(IKYCRecordRepository repo, IUserRepository userRepo, IAuditLogService auditLogService, IMapper mapper)
+        public KYCRecordService(IKYCRecordRepository repo, IUserRepository userRepo, IAuditLogService auditLogService, INotificationAlertService notificationService, IMapper mapper)
         {
             _repo = repo;
             _userRepo = userRepo;
             _auditLogService = auditLogService;
+            _notificationService = notificationService;
             _mapper = mapper;
+        }
+
+        private async Task TryNotifyAsync(int userId, NotificationCategory category, string message)
+        {
+            if (userId <= 0) return;
+            try
+            {
+                await _notificationService.CreateAsync(new CreateNotificationDto
+                {
+                    UserID = userId,
+                    Message = message,
+                    Category = category,
+                });
+            }
+            catch { }
         }
 
         public async Task<KYCRecordResponseDto> CreateAsync(CreateKYCRecordDto dto)
@@ -58,6 +75,8 @@ namespace SwiftPay.Services
                 });
             }
             catch { }
+            await TryNotifyAsync(created.UserID, NotificationCategory.KYC,
+                "Your KYC record has been submitted successfully and is pending review.");
             return _mapper.Map<KYCRecordResponseDto>(created);
         }
 
@@ -127,6 +146,13 @@ namespace SwiftPay.Services
                 });
             }
             catch { }
+            var statusMessage = updated.VerificationStatus switch
+            {
+                KycVerificationStatus.Verified => "Your KYC verification has been approved. You now have full access to all features.",
+                KycVerificationStatus.Rejected => $"Your KYC verification was rejected. Reason: {updated.Notes ?? "Please contact support for details."}",
+                _ => $"Your KYC status has been updated to {updated.VerificationStatus}."
+            };
+            await TryNotifyAsync(updated.UserID, NotificationCategory.KYC, statusMessage);
             return _mapper.Map<KYCRecordResponseDto>(updated);
         }
 
@@ -150,6 +176,8 @@ namespace SwiftPay.Services
                 });
             }
             catch { }
+            await TryNotifyAsync(updated.UserID, NotificationCategory.KYC,
+                "Congratulations! Your KYC verification has been approved. You now have full access to all features.");
 
             return _mapper.Map<KYCRecordResponseDto>(updated);
         }

@@ -28,7 +28,7 @@ namespace SwiftPay.Config.Configuration
 
             // Phone with filtered UNIQUE constraint
             builder.Property(u => u.Phone)
-                .HasMaxLength(50);
+                .HasMaxLength(10);
             builder.HasIndex(u => u.Phone)
                    .HasFilter("[IsDeleted] = 0")
                    .IsUnique();
